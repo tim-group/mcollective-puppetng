@@ -171,14 +171,20 @@ class McoHost
 
   # string summarizing the time taken for the run
   def time_summary
-    real_time = (Time.now.to_i - @run_time).round(0)
-    buf = "real time: #{real_time}"
+    time = time_hash
+    buf = "real time: #{time['real_time']}"
+    buf += ", puppet time: #{time['total'].round(0)}" if time.key?('total')
+    buf
+  end
+
+  def time_hash
+    end_time = Time.now.to_i
+    time = {}
     if !@latest.nil? and !@latest[:summary].nil? and !@latest[:summary]["time"].nil?
       time = @latest[:summary]["time"]
-      buf += ", puppet time: #{time["total"].round(0)}"
-      return buf
     end
-    return ""
+    time['real_time'] = (end_time - @run_time).round(0)
+    return time
   end
 
   # so the collection can sort by hostname
