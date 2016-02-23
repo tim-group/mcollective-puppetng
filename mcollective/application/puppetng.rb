@@ -15,6 +15,9 @@
 
 # the colorize gem, with a few small improvements for disabling color
 require 'mcollective/util/puppetng/colorize'
+require "google/api_client"
+require "google_drive"
+require 'csv'
 
 module MCollective
 module Util
@@ -38,9 +41,10 @@ class HostCollection < Hash
   attr_accessor :mc, :serial, :observers, :runid
   include MCollective::Util::PuppetNG
 
-  def initialize(mc, runid)
+  def initialize(mc, runid, file)
     @mc = mc
     @runid = runid
+    @file = file
     @serial = 0
 
     @observers = []
@@ -73,8 +77,30 @@ class HostCollection < Hash
     @observers.each { |o| o.on_node_update(self, host) if o.respond_to?(:on_node_update) }
   end
 
+  def output_time_data_to_file(state, host)
+    header_required = File.exist?(@file)
+    if state == :success
+      CSV.open(@file, 'a') do |csv|
+        csv << host.time_hash.keys.unshift('fqdn') unless header_required
+        csv << host.time_hash.values.unshift(host.hostname)
+      end
+      puts @file
+    end
+  end
+
+  def output_time_data_to_gdocs(state, host)
+    session = GoogleDrive.saved_session("config.json")
+    ws = session.spreadsheet_by_key("1HJH1MbObDmyKwKFG2ALV4w9SbtY32I0xoHyi0AYJNHM").worksheets[0]
+
+    if state == :success
+      ws.update_cells(10, 1, [host.time_hash.keys.unshift('status').unshift('fqdn')])
+      ws.update_cells(host.identifier, 1, [host.time_hash.values.unshift('complete').unshift(host.hostname)])
+    end
+      ws.save
+  end
+
   # We usually want to work with a sorted collection collection.
-  
+
   def values
     super.sort
   end
@@ -128,7 +154,7 @@ class HostCollection < Hash
       # not_found state, ot that the agent process is not running.
       elsif h.run_time > 0 and Time.now.to_i - h.run_time > 10
         if h.state == :not_found
-          h.mark_failed "run #{@runid} not found on agent." 
+          h.mark_failed "run #{@runid} not found on agent."
         # the agent lets us know if the PID which started a run is actually running.
         # if the run is incomplete and the monitor is not running, it probably failed.
         elsif !h.is_active?
@@ -140,15 +166,16 @@ class HostCollection < Hash
 end
 
 class McoHost
-  attr_accessor :hostname, :latest, :serial, :update_time, :collection, :run_time
+  attr_accessor :hostname, :latest, :serial, :update_time, :collection, :run_time, :identifier
   attr_accessor :ticks_before_unresponsive, :time_before_unresponsive, :local_error
 
   include MCollective::Util::PuppetNG
   include Comparable
 
-  def initialize(hostname, collection)
+  def initialize(hostname, collection, identifier)
     @run_time = -1
     @hostname = hostname
+    @identifier = identifier
     # used for notifications
     @collection = collection
     @serial = collection.serial
@@ -204,6 +231,7 @@ class McoHost
       @latest = response[:data]
 
 
+      @collection.output_time_data_to_gdocs(state, self)
       @collection.run_notify(state, self)
 
       # the expired_executions count incremented since the last update.
@@ -428,6 +456,14 @@ For FILTERS help, see ????
   def print_running(hosts)
     @last_running_display = Time.now.to_i
     r = hosts.local_running
+
+    session = GoogleDrive.saved_session("config.json")
+    ws = session.spreadsheet_by_key("1HJH1MbObDmyKwKFG2ALV4w9SbtY32I0xoHyi0AYJNHM").worksheets[0]
+    r.each do |host|
+      ws.update_cells(host.identifier, 1, [[host.hostname, 'running puppet']])
+    end
+    ws.save
+
     preview_hosts = r.map { |h| h.hostname }
     if r.length > @config.pluginconf.fetch("puppetng.display_progress_hosts_max", DISPLAY_PROGRESS_MAX_HOSTS).to_i
       preview_hosts = preview_hosts.slice(0, @config.pluginconf.fetch("puppetng.display_progress_hosts_preview", DISPLAY_PROGRESS_HOSTS_PREVIEW).to_i)
@@ -479,7 +515,7 @@ For FILTERS help, see ????
       state = state.green if state == "success"
       state = state.red if state == "failed"
       state = state.yellow if state == "running"
-      
+
       puts "#{senderid} .. #{state}"
     end
 
@@ -504,11 +540,22 @@ For FILTERS help, see ????
     mc = rpcclient("puppetng")
     mc.progress = false
 
+    FileUtils.mkdir_p("/tmp/#{runid}")
+    file = File.join('/tmp', runid, 'results')
+
     targets = mc.discover
 
     puts "#{logtime} discovered #{targets.length} hosts"
     puts "report ID: #{runid}"
     puts ""
+
+    session = GoogleDrive.saved_session("config.json")
+    ws = session.spreadsheet_by_key("1HJH1MbObDmyKwKFG2ALV4w9SbtY32I0xoHyi0AYJNHM").worksheets[0]
+    ws.update_cells(4, 1, [['report_id', runid]])
+    ws.update_cells(5, 1, [['time', Time.now]])
+    ws.update_cells(6, 1, [['targets', targets.length]])
+    ws.update_cells(10, 1, [['fqdn', 'status']])
+    ws.save
 
     # check we aren't going to overload our puppetmaster with too many concurrent runs.
     # provide --concurrency explictly if you're not sure.
@@ -521,15 +568,17 @@ For FILTERS help, see ????
     time_before_unresponsive = @config.pluginconf.fetch("puppetng.time_before_unresponsive", TIME_BEFORE_UNRESPONSIVE)
     ticks_before_unresponsive = @config.pluginconf.fetch("puppetng.ticks_before_unresponsive", TICKS_BEFORE_UNRESPONSIVE)
     # initialize the HostCollection with McoHost instances.
-    hosts = HostCollection.new(mc, runid)
+    hosts = HostCollection.new(mc, runid, file)
     hosts.observers = @observers
+    identifier = 10
     targets.each do |target|
-      host = hosts[target] = McoHost.new(target, hosts)
+      identifier = identifier + 1
+      host = hosts[target] = McoHost.new(target, hosts, identifier)
       host.ticks_before_unresponsive = ticks_before_unresponsive
       host.time_before_unresponsive = time_before_unresponsive
       puts "  * #{host.hostname}"
     end
-    
+
     filters = mc.filter
     @observers.each { |o| o.discovery(hosts, filters) if o.respond_to?(:discovery) }
 
@@ -556,10 +605,14 @@ For FILTERS help, see ????
       pending.each do |host|
         puts "#{logtime} #{host.hostname} start.".blue
         host.start
+        session = GoogleDrive.saved_session("config.json")
+        ws = session.spreadsheet_by_key("1HJH1MbObDmyKwKFG2ALV4w9SbtY32I0xoHyi0AYJNHM").worksheets[0]
+        ws.update_cells(host.identifier, 1, [[host.hostname, "started #{Time.now}"]])
+        ws.save
       end
 
       # we have runs to kick off
-      
+
       txn_start(hosts.serial)
       if pending.length > 0
         mc.discover(:nodes => pending.map { |host| host.hostname })
