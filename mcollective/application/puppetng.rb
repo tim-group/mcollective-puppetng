@@ -92,11 +92,19 @@ class HostCollection < Hash
     session = GoogleDrive.saved_session("config.json")
     ws = session.spreadsheet_by_key("1HJH1MbObDmyKwKFG2ALV4w9SbtY32I0xoHyi0AYJNHM").worksheets[0]
 
-    if state == :success
-      ws.update_cells(10, 1, [host.time_hash.keys.unshift('status').unshift('fqdn')])
-      ws.update_cells(host.identifier, 1, [host.time_hash.values.unshift('complete').unshift(host.hostname)])
+    keys = ['fqdn', 'status', 'real_time', 'total', 'config_retrieval', 'package', 'file']
+    th = host.time_hash
+    begin
+      if state == :success
+        ws.update_cells(host.identifier, 1, [[ host.hostname, 'complete', th['real_time'], th['total'], th['config_retrieval'], th['package'], th['file']]])
+      else
+        ws.update_cells(host.identifier, 1, [[host.hostname, state]])
+      end
+        ws.save
+    rescue Exception => e
+      puts e
     end
-      ws.save
+
   end
 
   # We usually want to work with a sorted collection collection.
@@ -460,7 +468,7 @@ For FILTERS help, see ????
     session = GoogleDrive.saved_session("config.json")
     ws = session.spreadsheet_by_key("1HJH1MbObDmyKwKFG2ALV4w9SbtY32I0xoHyi0AYJNHM").worksheets[0]
     r.each do |host|
-      ws.update_cells(host.identifier, 1, [[host.hostname, 'running puppet']])
+      ws.update_cells(host.identifier, 1, [[host.hostname, 'running']])
     end
     ws.save
 
@@ -551,10 +559,16 @@ For FILTERS help, see ????
 
     session = GoogleDrive.saved_session("config.json")
     ws = session.spreadsheet_by_key("1HJH1MbObDmyKwKFG2ALV4w9SbtY32I0xoHyi0AYJNHM").worksheets[0]
+    keys = ['fqdn', 'status', 'real_time', 'total', 'config_retrieval', 'package', 'file']
     ws.update_cells(4, 1, [['report_id', runid]])
     ws.update_cells(5, 1, [['time', Time.now]])
     ws.update_cells(6, 1, [['targets', targets.length]])
-    ws.update_cells(10, 1, [['fqdn', 'status']])
+    ws.update_cells(7, 1, [['concurrency', configuration[:concurrency]]])
+    ws.update_cells(10, 1, [keys])
+    1000.times do |n|
+      ws.update_cells(n+10, 1, [['', '', '', '', '', '', '']])
+    end
+    ws.update_cells(10, 1, [keys])
     ws.save
 
     # check we aren't going to overload our puppetmaster with too many concurrent runs.
