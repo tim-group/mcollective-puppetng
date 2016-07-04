@@ -396,8 +396,8 @@ For FILTERS help, see ????
     @observers = []
 
     @config = MCollective::Config.instance
-    observer_require = @config.pluginconf.fetch("puppetng.observer_require", nil)
-    observer_class = @config.pluginconf.fetch("puppetng.observer_class", nil)
+    observer_require = @config.pluginconf.fetch("plugin.puppetng.observer_require", nil)
+    observer_class = @config.pluginconf.fetch("plugin.puppetng.observer_class", nil)
 
     require observer_require unless observer_require.nil?
     unless observer_class.nil?
@@ -423,8 +423,8 @@ For FILTERS help, see ????
     @last_running_display = Time.now.to_i
     r = hosts.local_running
     preview_hosts = r.map { |h| h.hostname }
-    if r.length > @config.pluginconf.fetch("puppetng.display_progress_hosts_max", DISPLAY_PROGRESS_MAX_HOSTS).to_i
-      preview_hosts = preview_hosts.slice(0, @config.pluginconf.fetch("puppetng.display_progress_hosts_preview", DISPLAY_PROGRESS_HOSTS_PREVIEW).to_i)
+    if r.length > @config.pluginconf.fetch("plugin.puppetng.display_progress_hosts_max", DISPLAY_PROGRESS_MAX_HOSTS).to_i
+      preview_hosts = preview_hosts.slice(0, @config.pluginconf.fetch("plugin.puppetng.display_progress_hosts_preview", DISPLAY_PROGRESS_HOSTS_PREVIEW).to_i)
       puts "#{logtime} in progress: #{preview_hosts.join(", ")} and #{r.length - preview_hosts.length} other hosts."
     else
       puts "#{logtime} in progress: #{preview_hosts.join(", ")}"
@@ -506,14 +506,14 @@ For FILTERS help, see ????
 
     # check we aren't going to overload our puppetmaster with too many concurrent runs.
     # provide --concurrency explictly if you're not sure.
-    exit_if_exceed_concurrency = @config.pluginconf.fetch("puppetng.exit_if_exceed_concurrency", -1).to_i
+    exit_if_exceed_concurrency = @config.pluginconf.fetch("plugin.puppetng.exit_if_exceed_concurrency", -1).to_i
     if exit_if_exceed_concurrency > 0 and targets.length > exit_if_exceed_concurrency and configuration[:concurrency].nil?
       puts "#{targets.length} targets were discovered but no --concurrency setting was provided. refusing to run, as you should probably consider setting one."
       exit 1
     end
 
-    time_before_unresponsive = @config.pluginconf.fetch("puppetng.time_before_unresponsive", TIME_BEFORE_UNRESPONSIVE)
-    ticks_before_unresponsive = @config.pluginconf.fetch("puppetng.ticks_before_unresponsive", TICKS_BEFORE_UNRESPONSIVE)
+    time_before_unresponsive = @config.pluginconf.fetch("plugin.puppetng.time_before_unresponsive", TIME_BEFORE_UNRESPONSIVE)
+    ticks_before_unresponsive = @config.pluginconf.fetch("plugin.puppetng.ticks_before_unresponsive", TICKS_BEFORE_UNRESPONSIVE)
     # initialize the HostCollection with McoHost instances.
     hosts = HostCollection.new(mc, runid)
     hosts.observers = @observers
@@ -586,7 +586,7 @@ For FILTERS help, see ????
 
         hosts.check_for_unresponsive
 
-        if Time.now.to_i - @last_running_display > @config.pluginconf.fetch("puppetng.display_progress_interval", 90).to_i
+        if Time.now.to_i - @last_running_display > @config.pluginconf.fetch("plugin.puppetng.display_progress_interval", 90).to_i
           print_running(hosts)
         end
 	txn_end(hosts.serial)

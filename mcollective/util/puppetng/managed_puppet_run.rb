@@ -32,11 +32,11 @@ class ManagedPuppetRun
     # we're running in a standalong process not in mcollective, so the config
     # probably needs loading.
     @config.loadconfig("/etc/mcollective/server.cfg") unless @config.configured == true
-    @timeout = @config.pluginconf.fetch("puppetng.timeout", 60 * 20).to_i
-    @apply_wait_max = @config.pluginconf.fetch("puppetng.apply_wait_max", 45).to_i
-    @report_wait_max = @config.pluginconf.fetch("puppetng.report_wait_max", 120).to_i
-    @expired_execution_retries = @config.pluginconf.fetch("puppetng.expired_execution_retries", 1).to_i
-    @report_dir = @config.pluginconf.fetch("puppetng.report_dir", "/tmp/puppetng")
+    @timeout = @config.pluginconf.fetch("plugin.puppetng.timeout", 60 * 20).to_i
+    @apply_wait_max = @config.pluginconf.fetch("plugin.puppetng.apply_wait_max", 45).to_i
+    @report_wait_max = @config.pluginconf.fetch("plugin.puppetng.report_wait_max", 120).to_i
+    @expired_execution_retries = @config.pluginconf.fetch("plugin.puppetng.expired_execution_retries", 1).to_i
+    @report_dir = @config.pluginconf.fetch("plugin.puppetng.report_dir", "/tmp/puppetng")
     require 'fileutils'
     FileUtils::mkdir_p @report_dir
 
@@ -61,7 +61,7 @@ class ManagedPuppetRun
   # with 1 second delay.
   def get_summary
     failures = 0
-    while failures < @config.pluginconf.fetch("puppetng.max_summary_failures", MAX_SUMMARY_FAILURES).to_i
+    while failures < @config.pluginconf.fetch("plugin.puppetng.max_summary_failures", MAX_SUMMARY_FAILURES).to_i
       begin
         yaml = YAML.load_file(@lastrunsummary_file)
         if yaml.is_a?(Hash)
@@ -79,7 +79,7 @@ class ManagedPuppetRun
   # similar to get_summary. we check it has a "logs" field.
   def get_report
     failures = 0
-    while failures < @config.pluginconf.fetch("puppetng.max_report_failures", MAX_REPORT_FAILURES).to_i
+    while failures < @config.pluginconf.fetch("plugin.puppetng.max_report_failures", MAX_REPORT_FAILURES).to_i
       begin
         yaml = YAML.load_file(@lastrunreport_file)
         if yaml.respond_to?("logs")
@@ -120,7 +120,7 @@ class ManagedPuppetRun
 
   # Run puppet in foreground and check exit code.
   def foreground_run
-    puppet_path = @config.pluginconf.fetch("puppetng.puppet_path", "/usr/bin/puppet")
+    puppet_path = @config.pluginconf.fetch("plugin.puppetng.puppet_path", "/usr/bin/puppet")
     cmd = "#{puppet_path} agent --test --detailed-exitcodes"
     cmd += " --noop" if @noop == true
     cmd += " --tags #{@tags}" unless @tags.nil?
@@ -337,7 +337,7 @@ class ManagedPuppetRun
 
       # our puppet agents randomly disable themselves, so we reenable them.
       if @manager.disabled?
-        reenable = @config.pluginconf.fetch("puppetng.reenable", false)
+        reenable = @config.pluginconf.fetch("plugin.puppetng.reenable", false)
         reenable = true if reenable == "true"
         if reenable 
           @manager.enable!
