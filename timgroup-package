@@ -34,19 +34,24 @@ mv "${dir}"/mcollective/util/* build/common/"${plugin_dir}"/util
 sed -i 's|/usr/libexec/mcollective|/usr/share/mcollective/plugins|g' build/agent/"${bin_dir}"/puppetng_agent
 sed -i 's|/usr/lib/ruby/site_ruby/1.8/mcollective/vendor|/usr/lib/ruby/1.8/mcollective/vendor|g' build/agent/"${bin_dir}"/puppetng_agent
 
-function package() {
-  fpm -t deb -s dir \
-    --architecture all \
-    -C build/${1} \
-    --name mcollective-puppetng-${1} \
-    --version "${version}" \
-    -m 'Infrastructure <infra@timgroup.com>' \
-    --url 'https://github.com/tim-group/mcollective-puppetng' \
-    --description 'mcollective-puppetng is an mcollective agent and application for running puppet on many systems.'
-}
+fpm -t deb -s dir \
+  --architecture all \
+  -C build/agent \
+  --name mcollective-puppetng-agent \
+  --version "${version}" \
+  -m 'Infrastructure <infra@timgroup.com>' \
+  --url 'https://github.com/tim-group/mcollective-puppetng' \
+  --post-install 'postinst.sh' \
+  --description 'mcollective-puppetng is an mcollective agent and application for running puppet on many systems.'
 
-package agent
-package common
+fpm -t deb -s dir \
+  --architecture all \
+  -C build/common \
+  --name mcollective-puppetng-common \
+  --version "${version}" \
+  -m 'Infrastructure <infra@timgroup.com>' \
+  --url 'https://github.com/tim-group/mcollective-puppetng' \
+  --description 'mcollective-puppetng is an mcollective agent and application for running puppet on many systems.'
 
 fpm -t deb -s dir \
   --architecture all \
