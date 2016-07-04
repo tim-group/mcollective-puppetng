@@ -1,6 +1,6 @@
 #!/bin/bash -eux
 # XXX Make sure you increment this version if you repackage multiple on the same day. XXX
-version_increment=1
+version_increment=${BUILD_NUMBER:-1}
 version_hash=$(git ls-remote https://github.com/tim-group/mcollective-puppetng.git | head -n1 | awk '{print $1}')
 version_date=$(date -u +%Y%m%d)
 version="1.0.1+git${version_date}.${version_hash:0:6}-${version_increment}"
