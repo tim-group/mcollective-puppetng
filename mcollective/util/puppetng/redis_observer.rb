@@ -35,10 +35,10 @@ class RedisObserver
   def initialize
     @config = MCollective::Config.instance
 
-    @redis_host = @config.pluginconf.fetch("plugin.redis.host", "localhost")
-    @redis_port = Integer(@config.pluginconf.fetch("plugin.redis.port", "6379"))
-    @redis_db = Integer(@config.pluginconf.fetch("plugin.redis.db", "0"))
-    @redis_pass = @config.pluginconf.fetch("plugin.redis.pass", nil)
+    @redis_host = @config.pluginconf.fetch("redis.host", "localhost")
+    @redis_port = Integer(@config.pluginconf.fetch("redis.port", "6379"))
+    @redis_db = Integer(@config.pluginconf.fetch("redis.db", "0"))
+    @redis_pass = @config.pluginconf.fetch("redis.pass", nil)
 
     @redis = ::Redis.new(:host => @redis_host, :port => @redis_port, :db => @redis_db, :password => @redis_pass)
   end

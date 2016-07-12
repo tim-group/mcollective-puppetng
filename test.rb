@@ -34,7 +34,7 @@ include MCollective
 
 @config = MCollective::Config.instance
 @config.loadconfig("/etc/mcollective/server.cfg")
-report_dir = @config.pluginconf.fetch("plugin.puppetng.report_dir", "/tmp")
+report_dir = @config.pluginconf.fetch("puppetng.report_dir", "/tmp")
 
 puts "start test run #{testid}"
 

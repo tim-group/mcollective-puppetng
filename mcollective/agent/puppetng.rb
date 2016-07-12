@@ -31,7 +31,7 @@ module MCollective
 
       def startup_hook
         # get where to write report file to, to pass into PuppetRunRegistry
-        @report_dir = @config.pluginconf.fetch("plugin.puppetng.report_dir", "/tmp/puppetng")
+        @report_dir = @config.pluginconf.fetch("puppetng.report_dir", "/tmp/puppetng")
         require 'fileutils'
         FileUtils::mkdir_p @report_dir
 
@@ -50,7 +50,7 @@ module MCollective
       
       action "run" do
         runid = request[:runid]
-        agent_path = @config.pluginconf.fetch("plugin.puppetng.agent_path", "/usr/local/sbin/puppetng_agent")
+        agent_path = @config.pluginconf.fetch("puppetng.agent_path", "/usr/local/sbin/puppetng_agent")
         cmd = "#{agent_path} #{runid} --daemonize"
         cmd += " --noop" if request[:noop] == true
         cmd += " --tags #{request[:tags]}" unless request[:tags].nil?
