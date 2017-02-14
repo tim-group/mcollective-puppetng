@@ -301,15 +301,17 @@ class ManagedPuppetRun
   end
 
   # prevent leaking of json files after every puppet-ng run
-  def clean_reports
-    require 'fileutils'
-    FileUtils.rm Dir.glob("#{@report_dir}/*.json")
+  def clean_reports_older_than(secs)
+    Dir.glob("#{@report_dir}/*.json").each do |filename|
+      file_age = Time.now - File.ctime(filename)
+      File.delete(filename) if file_age >= secs
+    end
   end
 
   # atomic_file is used to write to a tmp file and overwrite the report.
   # ensuring half written reports are not consumed.
   def write_report
-    clean_reports
+    clean_reports_older_than(3600) # 1 hour
     @manager.atomic_file(report_file) do |file|
       file.write(JSON.pretty_generate(get_status))
     end
